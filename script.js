@@ -186,6 +186,13 @@ async function generateCardsFromAI(count, topic = '全般') {
     });
 }
 
+function createFallbackCards(topic) {
+    const now = Date.now();
+    return [
+        { id: `${topic}-${now}-f1`, title: `フォールバック: ${topic} 1`, point: '生成失敗のため暫定', detail: '', code: '' },
+        { id: `${topic}-${now}-f2`, title: `フォールバック: ${topic} 2`, point: '生成失敗のため暫定', detail: '', code: '' }
+    ];
+}
 /* ===== 表示系 ===== */
 function updateTopicTitle() { dom.topicTitle.textContent = state.currentTopic === 'おすすめ' ? 'ショート学習' : `「${state.currentTopic}」の学習`; }
 function updateActiveTab() {
