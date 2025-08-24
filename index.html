@@ -2,9 +2,9 @@
 <html lang="ja">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ショート学習アプリ</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ショート学習アプリ - 修正版</title>
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -533,7 +533,6 @@
 </head>
 
 <body>
-
     <div class="app-container">
         <div id="initial-loader">
             <div class="loader"></div>
@@ -542,7 +541,7 @@
 
         <div id="search-home-panel" class="hidden">
             <div class="search-box">
-                <input type="text" id="search-input" placeholder="何を学びますか？">
+                <input type="text" id="search-input" placeholder="何を学びますか？" />
                 <button id="search-button">検索</button>
             </div>
             <h2 class="history-title">検索履歴</h2>
@@ -599,7 +598,7 @@
             <div class="modal-body">
                 <ul id="playlist-modal-list" class="playlist-list"></ul>
                 <div class="new-playlist-form">
-                    <input type="text" id="new-playlist-input" class="search-input" placeholder="新規プレイリスト名">
+                    <input type="text" id="new-playlist-input" class="search-input" placeholder="新規プレイリスト名" />
                     <button id="create-playlist-btn" class="search-button">作成</button>
                 </div>
             </div>
@@ -648,34 +647,65 @@
             createPlaylistBtn: document.getElementById('create-playlist-btn'),
         };
 
-        // --- Function Declarations ---
-
+        // --- Utility functions ---
         function escapeHtml(unsafe) { if (typeof unsafe !== 'string') return ''; return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;"); }
 
-        async function callGeminiAPI(prompt, schema = null) {
-            // ===============================================================
-            // !!! IMPORTANT: REPLACE WITH YOUR OWN API KEY !!!
-            // ===============================================================
-            const apiKey = "AIzaSyAGp5utrpKieGaJoJ59qbQs-7X9GS0wbDk"; // ここにあなたのAPIキーを貼り付けてください
-            // ===============================================================
+        // Safe parse: 配列 JSON 部分だけ抜き出してパースする
+        function safeParseJsonArray(maybeJson) {
+            if (Array.isArray(maybeJson)) return maybeJson;
+            let s = String(maybeJson).trim();
+            // ```json ... ``` のガワを剥がす
+            s = s.replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
+            // 配列の部分を抜き出す (最も保守的)
+            const m = s.match(/\[[\s\S]*\]/);
+            if (!m) throw new Error('[STEP2] JSON配列が見つかりません');
+            return JSON.parse(m[0]);
+        }
 
+        // --- Stable, safer call to Gemini-like API ---
+        async function callGeminiAPI(prompt, schema = null) {
+            // NOTE: フロントにキーを置かないでください。本番は自分のサーバプロキシ経由で呼び出すこと。
+            const apiKey = "AIzaSyAGp5utrpKieGaJoJ59qbQs-7X9GS0wbDk"; // ← 必ず置き換えること
             const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-            if (schema) { payload.generationConfig = { responseMimeType: "application/json", responseSchema: schema }; }
-            for (let i = 0; i < 3; i++) {
+            if (schema) payload.generationConfig = { responseMimeType: "application/json", responseSchema: schema };
+
+            for (let attempt = 0; attempt < 3; attempt++) {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
                 try {
-                    const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                    const result = await response.json();
-                    if (result.candidates?.[0]?.content?.parts?.[0]?.text) { return result.candidates[0].content.parts[0].text; }
-                    else { throw new Error("Invalid response structure from API"); }
-                } catch (error) {
-                    if (i === 2) throw error;
-                    await new Promise(res => setTimeout(res, 1000 * Math.pow(2, i)));
+                    const res = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                        signal: controller.signal
+                    });
+                    const text = await res.text();
+                    if (!res.ok) {
+                        throw new Error(`[STEP2] HTTP ${res.status} - ${text.slice(0, 300)}`);
+                    }
+                    // 一度生テキストを確認 -> JSON化
+                    let json;
+                    try {
+                        json = JSON.parse(text);
+                    } catch (e) {
+                        throw new Error(`[STEP2] 非JSON応答: ${text.slice(0, 300)}`);
+                    }
+                    const part = json?.candidates?.[0]?.content?.parts?.find(p => typeof p.text === 'string');
+                    if (!part) throw new Error('[STEP2] 応答構造に text 部分が見つかりません');
+                    return part.text;
+                } catch (err) {
+                    // 最終リトライで投げる
+                    if (attempt === 2) throw err;
+                    // 少し待って指数バックオフ
+                    await new Promise(res => setTimeout(res, 1000 * Math.pow(2, attempt)));
+                } finally {
+                    clearTimeout(timeoutId);
                 }
             }
         }
 
+        // --- App logic ---
         function hideInitialLoader() {
             dom.initialLoader.style.opacity = '0';
             setTimeout(() => dom.initialLoader.style.display = 'none', 500);
@@ -708,8 +738,10 @@
 
         function saveState() {
             if (localStorageAvailable) {
-                localStorage.setItem(ALL_CARDS_KEY, JSON.stringify(Array.from(state.allCards.entries())));
-                localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(state.searchHistory));
+                try {
+                    localStorage.setItem(ALL_CARDS_KEY, JSON.stringify(Array.from(state.allCards.entries())));
+                    localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(state.searchHistory));
+                } catch (e) { console.warn('saveState failed', e); }
             }
         }
 
@@ -749,7 +781,10 @@
         function renderCurrentCardView() {
             dom.cardContainer.innerHTML = '';
             const currentCardId = state.cardIds[state.currentIndex];
-            if (!currentCardId) return;
+            if (!currentCardId) {
+                dom.cardContainer.innerHTML = `<div class="card current" style="justify-content:center; align-items:center;"><p class="empty-placeholder">カードがありません。検索してみてください。</p></div>`;
+                return;
+            }
             const prevCardId = state.cardIds[state.currentIndex - 1];
             const nextCardId = state.cardIds[state.currentIndex + 1];
             if (prevCardId) dom.cardContainer.appendChild(createCardElement(state.allCards.get(prevCardId), 'previous'));
@@ -765,7 +800,10 @@
             const aiButtonHTML = cardData.code ? `<button class="ai-explain-button" data-code="${escapeHtml(cardData.code)}">✨ AIで詳しく解説</button>` : '';
             cardEl.innerHTML = `<div class="card-title">${escapeHtml(cardData.title)}</div><div class="card-point">${escapeHtml(cardData.point)}</div>${cardData.detail ? `<div class="card-detail">${escapeHtml(cardData.detail)}</div>` : ''}${cardData.code ? `<pre class="card-code"><code>${escapeHtml(cardData.code)}</code></pre>` : ''}<div class="card-actions">${aiButtonHTML}<button class="like-button" data-id="${cardData.id}" aria-label="プレイリストに追加"><svg class="like-icon" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button></div>`;
             cardEl.querySelector('.like-button').addEventListener('click', handleLikeClick);
-            if (cardData.code) { cardEl.querySelector('.ai-explain-button').addEventListener('click', handleExplainClick); }
+            if (cardData.code) {
+                const btn = cardEl.querySelector('.ai-explain-button');
+                if (btn) btn.addEventListener('click', handleExplainClick);
+            }
             return cardEl;
         }
 
@@ -824,7 +862,7 @@
         function showError(message, showRetry = false) {
             hideInitialLoader();
             const retryButtonHTML = showRetry ? `<button id="error-retry-btn">検索に戻る</button>` : '';
-            dom.cardContainer.innerHTML = `<div class="card current error-card" style="justify-content:center; align-items:center;"><p>${message}</p>${retryButtonHTML}</div>`;
+            dom.cardContainer.innerHTML = `<div class="card current error-card" style="justify-content:center; align-items:center;"><p>${escapeHtml(String(message))}</p>${retryButtonHTML}</div>`;
             if (showRetry) {
                 document.getElementById('error-retry-btn').addEventListener('click', () => switchView('search'));
             }
@@ -873,7 +911,7 @@
             try {
                 dom.aiModalBody.textContent = await callGeminiAPI(prompt);
             } catch (error) {
-                dom.aiModalBody.textContent = "エラーが発生しました。";
+                dom.aiModalBody.textContent = "エラーが発生しました。詳細: " + String(error.message || error);
             }
         }
 
@@ -900,7 +938,8 @@
                 saveState();
                 startApp();
             } catch (error) {
-                showError(`「${topic}」の学習カードが見つかりませんでした。別のキーワードで試してみてください。`, true);
+                console.error('handleSearch error:', error);
+                showError(`学習カードの生成に失敗しました。原因: ${String(error.message || error)}`, true);
             } finally {
                 state.isFetching = false;
                 if (isInitial) hideInitialLoader();
@@ -915,7 +954,7 @@
                 const isChecked = cardIds.has(cardId);
                 const li = document.createElement('li');
                 li.className = 'playlist-item-modal';
-                li.innerHTML = `<input type="checkbox" id="pl-${name}" ${isChecked ? 'checked' : ''}><label for="pl-${name}">${escapeHtml(name)}</label>`;
+                li.innerHTML = `<input type="checkbox" id="pl-${escapeHtml(name)}" ${isChecked ? 'checked' : ''}><label for="pl-${escapeHtml(name)}">${escapeHtml(name)}</label>`;
                 li.querySelector('input').addEventListener('change', (e) => {
                     updateCardInPlaylist(cardId, name, e.target.checked);
                 });
@@ -986,9 +1025,13 @@
             dom.fetchingIndicator.classList.add('visible');
             try {
                 const newCards = await generateCardsFromAI(3, state.currentTopic);
-                newCards.forEach(card => state.allCards.set(card.id, card));
-                state.cardIds.push(...newCards.map(c => c.id));
-                saveState();
+                if (newCards && newCards.length > 0) {
+                    newCards.forEach(card => state.allCards.set(card.id, card));
+                    state.cardIds.push(...newCards.map(c => c.id));
+                    saveState();
+                } else {
+                    console.warn('addMoreCards: no additional cards returned');
+                }
             } catch (error) { console.error("Failed to add more cards:", error); }
             finally { state.isFetching = false; dom.fetchingIndicator.classList.remove('visible'); }
         }
@@ -997,8 +1040,15 @@
             const prompt = `あなたは様々な分野の専門家です。モバイル学習アプリ向けに、トピック「${topic}」に関する短く要点をまとめた学習カードを生成してください。以下のJSONスキーマに厳密に従い、${count}個のユニークな学習カードの配列を生成してください。`;
             const schema = { type: "ARRAY", items: { type: "OBJECT", properties: { id: { type: "STRING" }, title: { type: "STRING" }, point: { type: "STRING" }, detail: { type: "STRING" }, code: { type: "STRING" } }, required: ["id", "title", "point"] } };
             const resultText = await callGeminiAPI(prompt, schema);
-            const generatedCards = JSON.parse(resultText);
-            return generatedCards.map((card, index) => ({ ...card, id: `${topic}-${Date.now()}-${index}` }));
+            const arr = safeParseJsonArray(resultText);
+            const now = Date.now();
+            return arr.map((raw, i) => {
+                const title = String(raw.title || raw.heading || `学習カード ${i + 1}`).slice(0, 120);
+                const point = String(raw.point || raw.summary || '要点').slice(0, 200);
+                const detail = raw.detail ? String(raw.detail) : '';
+                const code = raw.code ? String(raw.code) : '';
+                return { id: `${topic}-${now}-${i}`, title, point, detail, code };
+            });
         }
 
         function setupEventListeners() {
