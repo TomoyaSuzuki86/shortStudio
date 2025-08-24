@@ -1,0 +1,14 @@
+{
+  "name": "shortstudio",
+  "version": "1.0.0",
+  "description": "「ショート学習アプリ」は、AIを活用した汎用的なショート動画風の学習Webアプリケーションです。ユーザーが検索によって自由に学習テーマを設定し、AIが動的に生成するカード形式のコンテンツで知識を深めることができます。",
+  "main": "script.js",
+  "directories": { "doc": "docs" },
+  "scripts": {
+    "test": "node --experimental-vm-modules --test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module"
+}
