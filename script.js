@@ -7,7 +7,7 @@ const DEBUG_BYPASS_AI = false;       // 完成版: false
 const DEBUG_SHOW_RAW_RESPONSE = false;
 
 // ここはそのまま使える（あなたのURL制限つきキーを直書き）
-const LLM_API_KEY = "AIzaSyAGp5utrpKieGaJoJ59qbQs-7X9GS0wbDk";
+const LLM_API_KEY = "AIzaSyA58TjdqTNxnBrIEIoP_Xwp-cgbMqvTZz4";
 
 const firebaseConfig = {
     apiKey: "AIzaSyD81oPn5HUBGmkHWId2KVpPdbGvJ9St_og",
