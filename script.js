@@ -348,10 +348,7 @@ async function handleSearch(topic, isInitial = false) {
         cards = await generateCardsFromAI(10, topic);
     } catch (err) {
         console.error(err);
-        cards = [
-            { id: `${topic}-fallback-0`, title: `フォールバック: ${topic} 1`, point: '生成に失敗したため暫定', detail: '', code: '' },
-            { id: `${topic}-fallback-1`, title: `フォールバック: ${topic} 2`, point: '生成に失敗したため暫定', detail: '', code: '' }
-        ];
+        cards = createFallbackCards(topic);
     }
     dom.fetchingText.textContent = 'カード表示中...';
     try {
