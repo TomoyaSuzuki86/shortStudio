@@ -33,6 +33,7 @@ function cacheDom() {
     dom.homeIcon = document.getElementById('home-icon');
     dom.topicTitle = document.getElementById('topic-title');
     dom.fetchingIndicator = document.getElementById('fetching-indicator');
+    dom.fetchingText = document.getElementById('fetching-text');
     dom.tabs = document.querySelectorAll('.tab-item');
     dom.panels = document.querySelectorAll('.content-panel');
     dom.cardContainer = document.getElementById('card-container');
@@ -331,17 +332,29 @@ async function handleExplainClick(e) {
 }
 
 async function handleSearch(topic, isInitial = false) {
+    if (state.isFetching) return;
     state.isFetching = true;
     if (!isInitial) {
         switchView('main');
+        dom.fetchingText.textContent = 'AI応答待ち...';
         dom.fetchingIndicator.classList.add('visible');
         dom.cardContainer.innerHTML = `<div class="card current" style="justify-content:center;align-items:center"><div class="loader"></div></div>`;
     }
     if (!state.searchHistory.includes(topic)) {
         state.searchHistory.unshift(topic); if (state.searchHistory.length > 10) state.searchHistory.pop();
     }
+    let cards = [];
     try {
-        const cards = await generateCardsFromAI(10, topic);
+        cards = await generateCardsFromAI(10, topic);
+    } catch (err) {
+        console.error(err);
+        cards = [
+            { id: `${topic}-fallback-0`, title: `フォールバック: ${topic} 1`, point: '生成に失敗したため暫定', detail: '', code: '' },
+            { id: `${topic}-fallback-1`, title: `フォールバック: ${topic} 2`, point: '生成に失敗したため暫定', detail: '', code: '' }
+        ];
+    }
+    dom.fetchingText.textContent = 'カード表示中...';
+    try {
         if (!cards || cards.length === 0) throw new Error('No cards generated');
         cards.forEach(c => state.allCards.set(c.id, c));
         state.cardIds = cards.map(c => c.id);
@@ -352,6 +365,7 @@ async function handleSearch(topic, isInitial = false) {
         state.isFetching = false;
         if (isInitial) hideInitialLoader();
         dom.fetchingIndicator.classList.remove('visible');
+        if (dom.fetchingText) dom.fetchingText.textContent = '';
     }
 }
 
@@ -383,7 +397,7 @@ function snapCardsBack() {
 }
 async function addMoreCards() {
     if (state.isFetching) return;
-    state.isFetching = true; dom.fetchingIndicator.classList.add('visible');
+    state.isFetching = true; dom.fetchingText.textContent = '追加生成中...'; dom.fetchingIndicator.classList.add('visible');
     try {
         const more = await generateCardsFromAI(3, state.currentTopic);
         if (more && more.length > 0) {
@@ -392,7 +406,7 @@ async function addMoreCards() {
             saveState();
         }
     } catch { } finally {
-        state.isFetching = false; dom.fetchingIndicator.classList.remove('visible');
+        state.isFetching = false; dom.fetchingIndicator.classList.remove('visible'); if (dom.fetchingText) dom.fetchingText.textContent = '';
     }
 }
 

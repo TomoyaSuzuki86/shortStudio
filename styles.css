@@ -74,6 +74,20 @@ body {
     height: 48px
 }
 
+#fetching-indicator {
+    display: none;
+    align-items: center;
+    gap: 6px;
+}
+
+#fetching-indicator.visible {
+    display: flex;
+}
+
+#fetching-indicator span {
+    font-size: .8rem;
+}
+
 .topic-title {
     font-weight: 700;
     white-space: nowrap;
