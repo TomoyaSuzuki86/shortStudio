@@ -92,7 +92,10 @@ body {
     font-weight: 700;
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+    text-align: center
 }
 
 .tabs {
