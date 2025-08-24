@@ -20,34 +20,37 @@ const firebaseConfig = {
 };
 
 /* ===== 共有DOM ===== */
-const dom = {
-    initialLoader: document.getElementById('initial-loader'),
-    searchHomePanel: document.getElementById('search-home-panel'),
-    mainContent: document.getElementById('main-content'),
-    searchInput: document.getElementById('search-input'),
-    searchButton: document.getElementById('search-button'),
-    historyList: document.getElementById('history-list'),
-    homeIcon: document.getElementById('home-icon'),
-    topicTitle: document.getElementById('topic-title'),
-    fetchingIndicator: document.getElementById('fetching-indicator'),
-    tabs: document.querySelectorAll('.tab-item'),
-    panels: document.querySelectorAll('.content-panel'),
-    cardContainer: document.getElementById('card-container'),
-    likesPanel: document.getElementById('likes-panel'),
-    playlistListView: document.getElementById('playlist-list-view'),
-    playlistCardsView: document.getElementById('playlist-cards-view'),
-    aiModal: document.getElementById('ai-modal'),
-    aiModalClose: document.getElementById('ai-modal-close'),
-    aiModalBody: document.getElementById('ai-modal-body'),
-    playlistModal: document.getElementById('playlist-modal'),
-    playlistModalClose: document.getElementById('playlist-modal-close'),
-    playlistModalList: document.getElementById('playlist-modal-list'),
-    newPlaylistInput: document.getElementById('new-playlist-input'),
-    createPlaylistBtn: document.getElementById('create-playlist-btn'),
-    debugPanel: document.getElementById('debug-panel'),
-    debugPre: document.getElementById('debug-pre'),
-    debugToggle: document.getElementById('debug-toggle'),
-};
+// DOM 要素の取得を遅延させ、DOMContentLoaded 後に確実に存在するようにする
+// (検索時に要素が null となり処理が進まない問題を防止)
+const dom = {};
+function cacheDom() {
+    dom.initialLoader = document.getElementById('initial-loader');
+    dom.searchHomePanel = document.getElementById('search-home-panel');
+    dom.mainContent = document.getElementById('main-content');
+    dom.searchInput = document.getElementById('search-input');
+    dom.searchButton = document.getElementById('search-button');
+    dom.historyList = document.getElementById('history-list');
+    dom.homeIcon = document.getElementById('home-icon');
+    dom.topicTitle = document.getElementById('topic-title');
+    dom.fetchingIndicator = document.getElementById('fetching-indicator');
+    dom.tabs = document.querySelectorAll('.tab-item');
+    dom.panels = document.querySelectorAll('.content-panel');
+    dom.cardContainer = document.getElementById('card-container');
+    dom.likesPanel = document.getElementById('likes-panel');
+    dom.playlistListView = document.getElementById('playlist-list-view');
+    dom.playlistCardsView = document.getElementById('playlist-cards-view');
+    dom.aiModal = document.getElementById('ai-modal');
+    dom.aiModalClose = document.getElementById('ai-modal-close');
+    dom.aiModalBody = document.getElementById('ai-modal-body');
+    dom.playlistModal = document.getElementById('playlist-modal');
+    dom.playlistModalClose = document.getElementById('playlist-modal-close');
+    dom.playlistModalList = document.getElementById('playlist-modal-list');
+    dom.newPlaylistInput = document.getElementById('new-playlist-input');
+    dom.createPlaylistBtn = document.getElementById('create-playlist-btn');
+    dom.debugPanel = document.getElementById('debug-panel');
+    dom.debugPre = document.getElementById('debug-pre');
+    dom.debugToggle = document.getElementById('debug-toggle');
+}
 
 /* ===== 状態 ===== */
 const state = {
@@ -449,7 +452,11 @@ function setupFirebase() {
 /* ===== 起動 ===== */
 function startApp() { updateTopicTitle(); renderCurrentCardView(); updateActiveTab(); }
 async function init() {
-    checkLocalStorage(); loadState(); setupEventListeners(); await setupFirebase();
+    checkLocalStorage();
+    cacheDom();
+    loadState();
+    setupEventListeners();
+    await setupFirebase();
 }
 
 window.addEventListener('DOMContentLoaded', init);
