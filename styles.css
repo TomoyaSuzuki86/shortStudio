@@ -26,6 +26,13 @@ body {
     position: relative
 }
 
+#main-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    height: 100%;
+}
+
 .hidden {
     display: none !important
 }
