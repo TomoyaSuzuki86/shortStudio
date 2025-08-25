@@ -40,6 +40,7 @@ function cacheDom() {
     dom.likesPanel = document.getElementById('likes-panel');
     dom.playlistListView = document.getElementById('playlist-list-view');
     dom.playlistCardsView = document.getElementById('playlist-cards-view');
+    dom.messageBanner = document.getElementById('message-banner');
     dom.aiModal = document.getElementById('ai-modal');
     dom.aiModalClose = document.getElementById('ai-modal-close');
     dom.aiModalBody = document.getElementById('ai-modal-body');
@@ -216,6 +217,13 @@ function switchView(view) {
     if (view === 'search') { dom.searchHomePanel.classList.remove('hidden'); dom.mainContent.classList.add('hidden'); renderSearchHistory(); }
     else { dom.searchHomePanel.classList.add('hidden'); dom.mainContent.classList.remove('hidden'); }
 }
+function showBanner(message, type = 'info', timeout = 4000) {
+    if (!dom.messageBanner) return;
+    dom.messageBanner.textContent = message;
+    dom.messageBanner.className = `message-banner ${type}`;
+    dom.messageBanner.classList.remove('hidden');
+    if (timeout) setTimeout(() => dom.messageBanner.classList.add('hidden'), timeout);
+}
 function showError(message, showRetry = false) {
     hideInitialLoader();
     const retry = showRetry ? `<button id="error-retry-btn" style="margin-top:12px;background:var(--ai-accent-color);color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer">検索に戻る</button>` : '';
@@ -359,8 +367,7 @@ async function handleSearch(topic, isInitial = false) {
         cards = await generateCardsFromAI(10, topic);
     } catch (err) {
         console.error(err);
-        dom.fetchingText.textContent = 'AI生成に失敗しました。代替カードを表示します';
-        setTimeout(() => { if (dom.fetchingText) dom.fetchingText.textContent = ''; }, 2000);
+        showBanner('AI生成に失敗したため代替カードを表示しています', 'error');
         cards = createFallbackCards(topic);
     }
     dom.fetchingText.textContent = 'カード表示中...';
@@ -417,16 +424,14 @@ async function addMoreCards() {
         state.cardIds.push(...toAdd.map(c => c.id));
         saveState();
         if (!more || more.length === 0) {
-            dom.fetchingText.textContent = 'フォールバックを表示しました';
-            setTimeout(() => { if (dom.fetchingText) dom.fetchingText.textContent = ''; }, 2000);
+            showBanner('AI生成に失敗したためフォールバックを表示しています', 'error');
         }
     } catch (err) {
         console.error(err);
         const fallback = createFallbackCards(state.currentTopic);
         fallback.forEach(c => state.allCards.set(c.id, c));
         state.cardIds.push(...fallback.map(c => c.id));
-        dom.fetchingText.textContent = '追加生成に失敗しました';
-        setTimeout(() => { if (dom.fetchingText) dom.fetchingText.textContent = ''; }, 2000);
+        showBanner('追加生成に失敗しました。フォールバックを表示します', 'error');
     } finally {
         state.isFetching = false;
         dom.fetchingIndicator.classList.remove('visible');
