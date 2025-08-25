@@ -162,18 +162,21 @@ async function generateCardsFromAI(count, topic = '全般') {
             required: ["title", "point"]
         }
     };
-    const resultText = await callLLM(prompt, schema);
+
+    let resultText;
+    try {
+        resultText = await callLLM(prompt, schema);
+    } catch (err) {
+        console.error(err);
+        return createFallbackCards(topic);
+    }
     setDebugRaw('RAW:\n' + String(resultText).slice(0, 5000));
 
     let arr;
     try {
         arr = safeParseJsonArray(resultText);
     } catch (parseErr) {
-        // 失敗してもUIが動くようフォールバック
-        arr = [
-            { title: `フォールバック: ${topic} 1`, point: '生成失敗のため暫定', detail: 'レスポンスのパースに失敗', code: '' },
-            { title: `フォールバック: ${topic} 2`, point: '同上', detail: '', code: '' }
-        ];
+        return createFallbackCards(topic);
     }
 
     const now = Date.now();
@@ -401,16 +404,32 @@ function snapCardsBack() {
 }
 async function addMoreCards() {
     if (state.isFetching) return;
-    state.isFetching = true; dom.fetchingText.textContent = '追加生成中...'; dom.fetchingIndicator.classList.add('visible');
+    state.isFetching = true;
+    dom.fetchingText.textContent = '追加生成中...';
+    dom.fetchingIndicator.classList.add('visible');
     try {
         const more = await generateCardsFromAI(3, state.currentTopic);
-        if (more && more.length > 0) {
-            more.forEach(c => state.allCards.set(c.id, c));
-            state.cardIds.push(...more.map(c => c.id));
-            saveState();
+        const toAdd = (more && more.length > 0) ? more : createFallbackCards(state.currentTopic);
+        toAdd.forEach(c => state.allCards.set(c.id, c));
+        state.cardIds.push(...toAdd.map(c => c.id));
+        saveState();
+        if (!more || more.length === 0) {
+            dom.fetchingText.textContent = 'フォールバックを表示しました';
+            setTimeout(() => { if (dom.fetchingText) dom.fetchingText.textContent = ''; }, 2000);
         }
-    } catch { } finally {
-        state.isFetching = false; dom.fetchingIndicator.classList.remove('visible'); if (dom.fetchingText) dom.fetchingText.textContent = '';
+    } catch (err) {
+        console.error(err);
+        const fallback = createFallbackCards(state.currentTopic);
+        fallback.forEach(c => state.allCards.set(c.id, c));
+        state.cardIds.push(...fallback.map(c => c.id));
+        dom.fetchingText.textContent = '追加生成に失敗しました';
+        setTimeout(() => { if (dom.fetchingText) dom.fetchingText.textContent = ''; }, 2000);
+    } finally {
+        state.isFetching = false;
+        dom.fetchingIndicator.classList.remove('visible');
+        if (dom.fetchingText && dom.fetchingText.textContent === '追加生成中...') {
+            dom.fetchingText.textContent = '';
+        }
     }
 }
 
