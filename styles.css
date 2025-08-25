@@ -134,6 +134,20 @@ body {
     background: var(--accent-color)
 }
 
+.message-banner {
+    padding: 8px 12px;
+    text-align: center;
+    font-size: .9rem;
+    background: var(--secondary-bg);
+    color: var(--text-color);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.message-banner.error {
+    background: var(--accent-color);
+    color: #fff;
+}
+
 #search-home-panel {
     padding: 20px;
     box-sizing: border-box;
