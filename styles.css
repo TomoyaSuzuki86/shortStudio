@@ -88,6 +88,19 @@ body {
     font-size: .8rem;
 }
 
+.message-banner {
+    display: none;
+    background: var(--accent-color);
+    color: #fff;
+    text-align: center;
+    padding: 6px;
+    font-size: .85rem;
+}
+
+.message-banner.visible {
+    display: block;
+}
+
 .topic-title {
     font-weight: 700;
     white-space: nowrap;

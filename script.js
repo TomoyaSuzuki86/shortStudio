@@ -34,6 +34,7 @@ function cacheDom() {
     dom.topicTitle = document.getElementById('topic-title');
     dom.fetchingIndicator = document.getElementById('fetching-indicator');
     dom.fetchingText = document.getElementById('fetching-text');
+    dom.messageBanner = document.getElementById('message-banner');
     dom.tabs = document.querySelectorAll('.tab-item');
     dom.panels = document.querySelectorAll('.content-panel');
     dom.cardContainer = document.getElementById('card-container');
@@ -168,7 +169,7 @@ async function generateCardsFromAI(count, topic = '全般') {
         resultText = await callLLM(prompt, schema);
     } catch (err) {
         console.error(err);
-        return createFallbackCards(topic);
+        throw err;
     }
     setDebugRaw('RAW:\n' + String(resultText).slice(0, 5000));
 
@@ -176,7 +177,8 @@ async function generateCardsFromAI(count, topic = '全般') {
     try {
         arr = safeParseJsonArray(resultText);
     } catch (parseErr) {
-        return createFallbackCards(topic);
+        console.error(parseErr);
+        throw parseErr;
     }
 
     const now = Date.now();
@@ -214,6 +216,15 @@ function renderSearchHistory() {
 function switchView(view) {
     if (view === 'search') { dom.searchHomePanel.classList.remove('hidden'); dom.mainContent.classList.add('hidden'); renderSearchHistory(); }
     else { dom.searchHomePanel.classList.add('hidden'); dom.mainContent.classList.remove('hidden'); }
+}
+function showBanner(message, duration = 3000) {
+    if (!dom.messageBanner) return;
+    dom.messageBanner.textContent = String(message);
+    dom.messageBanner.classList.add('visible');
+    setTimeout(() => {
+        dom.messageBanner.classList.remove('visible');
+        dom.messageBanner.textContent = '';
+    }, duration);
 }
 function showError(message, showRetry = false) {
     hideInitialLoader();
@@ -356,11 +367,12 @@ async function handleSearch(topic, isInitial = false) {
     let cards = [];
     try {
         cards = await generateCardsFromAI(10, topic);
+        dom.fetchingText.textContent = 'カード表示中...';
     } catch (err) {
         console.error(err);
+        showBanner(`AI生成に失敗しました: ${String(err.message || err)}`);
         cards = createFallbackCards(topic);
     }
-    dom.fetchingText.textContent = 'カード表示中...';
     try {
         if (!cards || cards.length === 0) throw new Error('No cards generated');
         cards.forEach(c => state.allCards.set(c.id, c));
@@ -414,16 +426,14 @@ async function addMoreCards() {
         state.cardIds.push(...toAdd.map(c => c.id));
         saveState();
         if (!more || more.length === 0) {
-            dom.fetchingText.textContent = 'フォールバックを表示しました';
-            setTimeout(() => { if (dom.fetchingText) dom.fetchingText.textContent = ''; }, 2000);
+            showBanner('フォールバックを表示しました');
         }
     } catch (err) {
         console.error(err);
         const fallback = createFallbackCards(state.currentTopic);
         fallback.forEach(c => state.allCards.set(c.id, c));
         state.cardIds.push(...fallback.map(c => c.id));
-        dom.fetchingText.textContent = '追加生成に失敗しました';
-        setTimeout(() => { if (dom.fetchingText) dom.fetchingText.textContent = ''; }, 2000);
+        showBanner('追加生成に失敗しました');
     } finally {
         state.isFetching = false;
         dom.fetchingIndicator.classList.remove('visible');
