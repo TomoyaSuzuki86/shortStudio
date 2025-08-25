@@ -1,6 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 /* ===== 設定 ===== */
 const DEBUG_BYPASS_AI = false;       // 完成版: false
@@ -37,18 +36,10 @@ function cacheDom() {
     dom.tabs = document.querySelectorAll('.tab-item');
     dom.panels = document.querySelectorAll('.content-panel');
     dom.cardContainer = document.getElementById('card-container');
-    dom.likesPanel = document.getElementById('likes-panel');
-    dom.playlistListView = document.getElementById('playlist-list-view');
-    dom.playlistCardsView = document.getElementById('playlist-cards-view');
     dom.messageBanner = document.getElementById('message-banner');
     dom.aiModal = document.getElementById('ai-modal');
     dom.aiModalClose = document.getElementById('ai-modal-close');
     dom.aiModalBody = document.getElementById('ai-modal-body');
-    dom.playlistModal = document.getElementById('playlist-modal');
-    dom.playlistModalClose = document.getElementById('playlist-modal-close');
-    dom.playlistModalList = document.getElementById('playlist-modal-list');
-    dom.newPlaylistInput = document.getElementById('new-playlist-input');
-    dom.createPlaylistBtn = document.getElementById('create-playlist-btn');
     dom.debugPanel = document.getElementById('debug-panel');
     dom.debugPre = document.getElementById('debug-pre');
     dom.debugToggle = document.getElementById('debug-toggle');
@@ -58,15 +49,13 @@ function cacheDom() {
 const state = {
     cardIds: [], allCards: new Map(), currentIndex: 0,
     playlists: new Map(), activeTab: 'feed', isFetching: false,
-    currentTopic: 'おすすめ', userId: null, db: null, auth: null,
+    currentTopic: 'おすすめ',
     searchHistory: []
 };
 const ALL_CARDS_KEY = 'sl_allCards_v9';
 const SEARCH_HISTORY_KEY = 'sl_searchHistory_v9';
 let localStorageAvailable = false;
 const app = initializeApp(firebaseConfig);
-const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'default-app-id';
-const db = getFirestore(app);
 const auth = getAuth(app);
 
 /* ===== ユーティリティ ===== */
@@ -203,7 +192,6 @@ function updateTopicTitle() { dom.topicTitle.textContent = state.currentTopic ==
 function updateActiveTab() {
     dom.tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === state.activeTab));
     dom.panels.forEach(p => p.classList.toggle('active', p.id.startsWith(state.activeTab)));
-    if (state.activeTab === 'likes') renderPlaylists();
 }
 function renderSearchHistory() {
     dom.historyList.innerHTML = '';
@@ -253,48 +241,10 @@ function createCardElement(cardData, pos) {
       <div class="card-point">${escapeHtml(cardData.point)}</div>
       ${cardData.detail ? `<div class="card-detail">${escapeHtml(cardData.detail)}</div>` : ''}
       ${cardData.code ? `<pre class="card-code"><code>${escapeHtml(cardData.code)}</code></pre>` : ''}
-      <div class="card-actions">
-${aiBtn}
-<button class="like-button" data-id="${cardData.id}" aria-label="プレイリストに追加">
-  <svg class="like-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
-    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-  </svg>
-</button>
-      </div>`;
-    const likeBtn = el.querySelector('.like-button'); if (likeBtn) likeBtn.addEventListener('click', handleLikeClick);
+      ${aiBtn ? `<div class="card-actions">${aiBtn}</div>` : ''}`;
     const explainBtn = el.querySelector('.ai-explain-button'); if (explainBtn) explainBtn.addEventListener('click', handleExplainClick);
     return el;
 }
-function renderPlaylists() {
-    dom.playlistListView.innerHTML = ''; dom.playlistCardsView.classList.add('hidden'); dom.playlistListView.classList.remove('hidden');
-    if (state.playlists.size === 0) {
-        dom.playlistListView.innerHTML = '<div class="empty-placeholder"><p>プレイリストがありません。</p></div>'; return;
-    }
-    state.playlists.forEach((cardIds, name) => {
-        const item = document.createElement('div'); item.className = 'playlist-item';
-        item.innerHTML = `<div style="font-weight:700">${escapeHtml(name)}</div><div style="color:#c0c0c0">${cardIds.size} 件のカード</div>`;
-        item.addEventListener('click', () => renderPlaylistCards(name));
-        dom.playlistListView.appendChild(item);
-    });
-}
-function renderPlaylistCards(name) {
-    dom.playlistListView.classList.add('hidden'); dom.playlistCardsView.classList.remove('hidden'); dom.playlistCardsView.innerHTML = '';
-    const header = document.createElement('div'); header.style.display = 'flex'; header.style.alignItems = 'center'; header.style.marginBottom = '12px';
-    header.innerHTML = `<button class="back-to-playlists" style="background:none;border:none;cursor:pointer;margin-right:10px">◀</button><h3 style="margin:0">${escapeHtml(name)}</h3>`;
-    header.querySelector('.back-to-playlists').addEventListener('click', renderPlaylists);
-    dom.playlistCardsView.appendChild(header);
-    const ids = state.playlists.get(name);
-    if (ids && ids.size > 0) {
-        ids.forEach(cid => {
-            const c = state.allCards.get(cid); if (!c) return;
-            const item = document.createElement('div'); item.className = 'liked-item';
-            item.innerHTML = `<div style="font-weight:700">${escapeHtml(c.title)}</div><div style="color:#c0c0c0">${escapeHtml(c.point)}</div>`;
-            item.addEventListener('click', () => handleLikedItemClick(cid));
-            dom.playlistCardsView.appendChild(item);
-        });
-    }
-}
-
 /* ===== ハンドラ ===== */
 function handleTabClick(e) { state.activeTab = e.currentTarget.dataset.tab; updateActiveTab(); }
 function handleLikeClick(e) {
@@ -319,12 +269,12 @@ function renderPlaylistModal() {
     });
 }
 function updateCardInPlaylist(cardId, playlistName, shouldBeIn) {
-    const pl = state.playlists.get(playlistName); if (!pl) return; if (shouldBeIn) pl.add(cardId); else pl.delete(cardId); savePlaylists();
+    const pl = state.playlists.get(playlistName); if (!pl) return; if (shouldBeIn) pl.add(cardId); else pl.delete(cardId);
 }
 function createNewPlaylist() {
     const name = (dom.newPlaylistInput.value || '').trim(); if (!name) return;
     if (!state.playlists.has(name)) state.playlists.set(name, new Set());
-    dom.newPlaylistInput.value = ''; renderPlaylistModal(); savePlaylists();
+    dom.newPlaylistInput.value = '';
 }
 function handleLikedItemClick(cardId) {
     const topic = (cardId || '').split('-')[0];
@@ -441,24 +391,12 @@ async function addMoreCards() {
     }
 }
 
-async function savePlaylists() {
-    if (!state.userId) return;
-    const playlistsDocRef = doc(db, `artifacts/${appId}/users/${state.userId}/playlists/data`);
-    try {
-        const obj = {}; state.playlists.forEach((ids, name) => obj[name] = Array.from(ids));
-        await setDoc(playlistsDocRef, obj);
-    } catch (e) { /* noop */ }
-}
-
 /* ===== イベント結線 ===== */
 function setupEventListeners() {
-    dom.tabs.forEach(t => t.addEventListener('click', handleTabClick));
     dom.homeIcon.addEventListener('click', () => switchView('search'));
     dom.searchButton.addEventListener('click', () => { const q = (dom.searchInput.value || '').trim(); if (q) handleSearch(q); });
     dom.searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') dom.searchButton.click(); });
     dom.aiModalClose.addEventListener('click', () => dom.aiModal.classList.remove('visible'));
-    dom.playlistModalClose.addEventListener('click', () => dom.playlistModal.classList.remove('visible'));
-    dom.createPlaylistBtn.addEventListener('click', createNewPlaylist);
 
     // スワイプ
     let startY = 0, startX = 0, isDragging = false; const swipeThreshold = 50, angleThreshold = 20;
@@ -475,20 +413,9 @@ function setupEventListeners() {
 /* ===== Firebase init ===== */
 function setupFirebase() {
     return new Promise(resolve => {
-        onAuthStateChanged(auth, user => {
-            if (user) {
-                state.userId = user.uid;
-                const playlistsDocRef = doc(db, `artifacts/${appId}/users/${state.userId}/playlists/data`);
-                onSnapshot(playlistsDocRef, snap => {
-                    state.playlists.clear();
-                    if (snap.exists()) {
-                        const data = snap.data(); for (const name in data) { state.playlists.set(name, new Set(data[name])); }
-                    }
-                    if (state.activeTab === 'likes') renderPlaylists();
-                    if (dom.initialLoader.style.display !== 'none') { hideInitialLoader(); switchView('search'); }
-                    resolve();
-                });
-            }
+        onAuthStateChanged(auth, () => {
+            if (dom.initialLoader.style.display !== 'none') { hideInitialLoader(); switchView('search'); }
+            resolve();
         });
         signInAnonymously(auth).catch(() => { hideInitialLoader(); switchView('search'); resolve(); });
     });

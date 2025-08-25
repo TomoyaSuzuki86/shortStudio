@@ -40,20 +40,12 @@
                         <span id="fetching-text"></span>
                     </div>
                 </div>
-                <nav class="tabs">
-                    <div class="tab-item active" data-tab="feed">学習</div>
-                    <div class="tab-item" data-tab="likes">プレイリスト</div>
-                </nav>
                 <div id="message-banner" class="message-banner hidden"></div>
             </header>
 
             <main class="content-area">
                 <section id="feed-panel" class="content-panel active">
                     <div id="card-container" class="card-container"></div>
-                </section>
-                <section id="likes-panel" class="content-panel">
-                    <div id="playlist-list-view"></div>
-                    <div id="playlist-cards-view" class="hidden"></div>
                 </section>
             </main>
         </div>
@@ -68,26 +60,6 @@
                     style="background:none;border:none;color:var(--text-color);font-size:20px;cursor:pointer">&times;</button>
             </div>
             <div id="ai-modal-body" style="line-height:1.6"></div>
-        </div>
-    </div>
-
-    <!-- Playlist modal -->
-    <div id="playlist-modal" class="modal-backdrop">
-        <div class="modal-content">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-                <h3 style="margin:0">プレイリストに追加</h3>
-                <button id="playlist-modal-close"
-                    style="background:none;border:none;color:var(--text-color);font-size:20px;cursor:pointer">&times;</button>
-            </div>
-            <div id="playlist-modal-list"></div>
-            <div style="margin-top:12px;border-top:1px solid var(--border-color);padding-top:10px;display:flex;gap:8px">
-                <input id="new-playlist-input" placeholder="新規プレイリスト名"
-                    style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border-color);background:var(--primary-bg);color:var(--text-color)" />
-                <button id="create-playlist-btn"
-                    style="background:var(--ai-accent-color);border:none;padding:8px 12px;border-radius:8px;color:#fff">
-                    作成
-                </button>
-            </div>
         </div>
     </div>
 
