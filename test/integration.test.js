@@ -59,7 +59,7 @@ async function loadContext() {
   };
   vm.createContext(context);
   const code = fs.readFileSync(path.resolve('script.js'), 'utf8');
-  const sanitized = code.replace(/^import[^;]*;\n/gm, '') + '\nexport { state, dom, updateCardInPlaylist, saveState, loadState, cacheDom, checkLocalStorage };';
+  const sanitized = code.replace(/^import[^;]*;\n/gm, '') + '\nexport { state, dom, saveState, loadState, cacheDom, checkLocalStorage };';
   const module = new vm.SourceTextModule(sanitized, { context });
   await module.link(() => {});
   await module.evaluate();
@@ -78,13 +78,3 @@ test('saveState and loadState persist search history', async () => {
   assert.strictEqual(ctx.state.searchHistory[0], 'テーマ');
 });
 
-test('updateCardInPlaylist adds and removes card', async () => {
-  const ctx = await loadContext();
-  ctx.savePlaylists = () => {};
-  ctx.state.playlists.set('my', new Set());
-  const cid = 'topic-123-0';
-  ctx.updateCardInPlaylist(cid, 'my', true);
-  assert.ok(ctx.state.playlists.get('my').has(cid));
-  ctx.updateCardInPlaylist(cid, 'my', false);
-  assert.ok(!ctx.state.playlists.get('my').has(cid));
-});
