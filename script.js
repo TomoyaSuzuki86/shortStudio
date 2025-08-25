@@ -168,7 +168,7 @@ async function generateCardsFromAI(count, topic = '全般') {
         resultText = await callLLM(prompt, schema);
     } catch (err) {
         console.error(err);
-        return createFallbackCards(topic);
+        throw err;
     }
     setDebugRaw('RAW:\n' + String(resultText).slice(0, 5000));
 
@@ -176,7 +176,8 @@ async function generateCardsFromAI(count, topic = '全般') {
     try {
         arr = safeParseJsonArray(resultText);
     } catch (parseErr) {
-        return createFallbackCards(topic);
+        console.error(parseErr);
+        throw parseErr;
     }
 
     const now = Date.now();
@@ -358,6 +359,8 @@ async function handleSearch(topic, isInitial = false) {
         cards = await generateCardsFromAI(10, topic);
     } catch (err) {
         console.error(err);
+        dom.fetchingText.textContent = 'AI生成に失敗しました。代替カードを表示します';
+        setTimeout(() => { if (dom.fetchingText) dom.fetchingText.textContent = ''; }, 2000);
         cards = createFallbackCards(topic);
     }
     dom.fetchingText.textContent = 'カード表示中...';
